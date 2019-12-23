@@ -247,7 +247,8 @@ class GoogleMapPlotter(object):
         lat1 = (math.pi / 180.0) * lat
         lng1 = (math.pi / 180.0) * lng
 
-        r = [x * 10 for x in range(36)]
+        npoints = 7
+        r = [x * 360/npoints for x in range(npoints)]
         for a in r:
             tc = (math.pi / 180.0) * a
             y = math.asin(
@@ -354,7 +355,7 @@ class GoogleMapPlotter(object):
         f.write('\t\t});\n')
         f.write('\n')
         f.write('\t\tpolygon.setMap(map);\n')
-        f.write('\n\n')
+        f.write('\n')
         
         f.write('\t\tvar bounds%s = new google.maps.LatLngBounds();\n' % i)
         f.write('\t\tfor (var i = 0; i < polygon.getPath().getLength(); i++) {\n')
