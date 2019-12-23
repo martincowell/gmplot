@@ -54,7 +54,7 @@ class GoogleMapPlotter(object):
         color = self.html_color_codes.get(color, color)
         self.points.append((lat, lng, color[1:], title, label))
 
-    def scatter(self, lats, lngs, color=None, size=None, marker=True, c=None, s=None, **kwargs):
+    def scatter(self, lats, lngs, color=None, size=None, marker=True, c=None, s=None, label = "", **kwargs):
         color = color or c
         size = size or s or 40
         kwargs["color"] = color
@@ -64,16 +64,16 @@ class GoogleMapPlotter(object):
             if marker:
                 self.marker(lat, lng, settings['color'])
             else:
-                self.circle(lat, lng, size, **settings)
+                self.circle(lat, lng, size, label, **settings)
 
-    def circle(self, lat, lng, radius, color=None, c=None, **kwargs):
+    def circle(self, lat, lng, radius = 40, color=None, c=None, label = "", **kwargs):
         color = color or c
         kwargs.setdefault('face_alpha', 0.5)
         kwargs.setdefault('face_color', "#000000")
         kwargs.setdefault("color", color)
         settings = self._process_kwargs(kwargs)
         path = self.get_cycle(lat, lng, radius)
-        self.shapes.append((path, settings))
+        self.shapes.append((path, settings, label))
 
     def _process_kwargs(self, kwargs):
         settings = dict()
@@ -264,8 +264,8 @@ class GoogleMapPlotter(object):
             self.write_polyline(f, path, settings)
 
     def write_shapes(self, f):
-        for shape, settings in self.shapes:
-            self.write_polygon(f, shape, settings)
+        for i, (shape, settings, label) in enumerate(self.shapes):
+            self.write_polygon(f, shape, settings, label, i)
 
     # TODO: Add support for mapTypeId: google.maps.MapTypeId.SATELLITE
     def write_map(self,  f):
@@ -327,34 +327,47 @@ class GoogleMapPlotter(object):
         f.write('Path.setMap(map);\n')
         f.write('\n\n')
 
-    def write_polygon(self, f, path, settings):
-        clickable = False
+    def write_polygon(self, f, path, settings, label, i = ""):
+        clickable = True
         geodesic = True
         strokeColor = settings.get('edge_color') or settings.get('color')
         strokeOpacity = settings.get('edge_alpha')
         strokeWeight = settings.get('edge_width')
         fillColor = settings.get('face_color') or settings.get('color')
         fillOpacity= settings.get('face_alpha')
-        f.write('var coords = [\n')
+        f.write('\t\tvar coords = [\n')
         for coordinate in path:
-            f.write('new google.maps.LatLng(%f, %f),\n' %
+            f.write('\t\tnew google.maps.LatLng(%f, %f),\n' %
                     (coordinate[0], coordinate[1]))
-        f.write('];\n')
+        f.write('\t\t];\n')
         f.write('\n')
 
-        f.write('var polygon = new google.maps.Polygon({\n')
-        f.write('clickable: %s,\n' % (str(clickable).lower()))
-        f.write('geodesic: %s,\n' % (str(geodesic).lower()))
-        f.write('fillColor: "%s",\n' % (fillColor))
-        f.write('fillOpacity: %f,\n' % (fillOpacity))
-        f.write('paths: coords,\n')
-        f.write('strokeColor: "%s",\n' % (strokeColor))
-        f.write('strokeOpacity: %f,\n' % (strokeOpacity))
-        f.write('strokeWeight: %d\n' % (strokeWeight))
-        f.write('});\n')
+        f.write('\t\tvar polygon = new google.maps.Polygon({\n')
+        f.write('\t\tclickable: %s,\n' % (str(clickable).lower()))
+        f.write('\t\tgeodesic: %s,\n' % (str(geodesic).lower()))
+        f.write('\t\tfillColor: "%s",\n' % (fillColor))
+        f.write('\t\tfillOpacity: %f,\n' % (fillOpacity))
+        f.write('\t\tpaths: coords,\n')
+        f.write('\t\tstrokeColor: "%s",\n' % (strokeColor))
+        f.write('\t\tstrokeOpacity: %f,\n' % (strokeOpacity))
+        f.write('\t\tstrokeWeight: %d\n' % (strokeWeight))
+        f.write('\t\t});\n')
         f.write('\n')
-        f.write('polygon.setMap(map);\n')
+        f.write('\t\tpolygon.setMap(map);\n')
         f.write('\n\n')
+        
+        f.write('\t\tvar bounds%s = new google.maps.LatLngBounds();\n' % i)
+        f.write('\t\tfor (var i = 0; i < polygon.getPath().getLength(); i++) {\n')
+        f.write('\t\tbounds%s.extend(polygon.getPath().getAt(i));\n' % i)
+        f.write('\t\t}\n\n')
+        f.write('\t\tvar infowindow%s = new google.maps.InfoWindow({\n' % i)
+        f.write('\t\tcontent: "%s", \n' % label)
+        f.write('\t\t});\n\n')
+        f.write('\t\tpolygon.addListener("click", function() {\n')
+        f.write('\t\tinfowindow%s.open(map, polygon);\n' % i)
+        f.write('\t\tinfowindow%s.setPosition(bounds%s.getCenter());\n' % (i, i))
+        f.write('\t\t});\n')
+        f.write('\n')
 
     def write_heatmap(self, f):
         for heatmap_points, settings_string in self.heatmap_points:
