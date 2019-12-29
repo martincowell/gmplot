@@ -66,6 +66,7 @@ class GoogleMapPlotter(object):
             else:
                 self.circle(lat, lng, size, label, **settings)
 
+    #https://stackoverflow.com/questions/52176874/google-maps-infowindow-on-mouseover-of-polygon
     def circle(self, lat, lng, radius = 40, color=None, c=None, label = "", **kwargs):
         color = color or c
         kwargs.setdefault('face_alpha', 0.5)
@@ -328,6 +329,8 @@ class GoogleMapPlotter(object):
         f.write('Path.setMap(map);\n')
         f.write('\n\n')
 
+    # added infoWindow functionality to polygons 
+    #https://stackoverflow.com/questions/52176874/google-maps-infowindow-on-mouseover-of-polygon
     def write_polygon(self, f, path, settings, label, i = ""):
         clickable = True
         geodesic = True
